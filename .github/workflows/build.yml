@@ -1,0 +1,184 @@
+name: Xphost Tutorial Actions
+
+on:
+  push: [main]
+  workflow_dispatch:
+
+job:
+  # 发布 Tauri 项目的 CI
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            platform: windows
+            arch: x86_64
+          - os: windows-latest
+            target: i686-pc-windows-msvc
+            platform: windows
+            arch: i686
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            platform: windows
+            arch: aarch64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            platform: macos
+            arch: aarch64
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            platform: macos
+            arch: x86_64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            platform: linux
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            platform: linux
+            arch: aarch64
+          # - os: ubuntu-latest
+          #   target: x86_64-unknown-freebsd
+          #   platform: freebsd
+          #   arch: x86_64
+          - os: ubuntu-latest
+            target: aarch64-linux-android
+            platform: android
+            arch: aarch64
+          - os: ubuntu-latest
+            target: armv7-linux-androideabi
+            platform: android
+            arch: armv7
+          - os: ubuntu-latest
+            target: x86_64-linux-android
+            platform: android
+            arch: x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - name: install Rust 1.84.1
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.84.1
+          targets: ${{ matrix.target }}
+      - name: Install Java toolchain
+        if: ${{ matrix.platform == 'android' }}
+        uses: actions/setup-java@v3
+        with:
+          java-version: "17"
+          distribution: "temurin"
+      - name: Install Android toolchain
+        if: ${{ matrix.platform == 'android' }}
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 9477386
+      - name: Install Linux dependencies
+        if: ${{ matrix.platform == 'linux' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          # Additional dependencies for ARM64 building
+          sudo apt-get install -y xdg-utils
+      - name: Install Rustup Android toolchain
+        if: ${{ matrix.platform == 'android' }}
+        run: |
+          rustup target add ${{ matrix.target }}
+      - name: install frontend dependencies
+        run: |
+          npm install
+          npm run tauri icon
+      - name: Build the app
+        if: ${{ matrix.platform != 'android' }}
+        run: npm run tauri build -- --target ${{ matrix.target }}
+      - name: Build Android app and sign app
+        if: ${{ matrix.platform == 'android' }}
+        env:
+          NDK_HOME: /usr/local/lib/android/sdk/ndk/29.0.14206865
+          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/29.0.14206865
+        run: |
+          npm run tauri android init
+          # 生成签名（需要调用我的秘密密钥）
+          keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload -storepass ${{ secrets.MY_ANDROID_KEYTOOL_PASSWORD }} -dname "CN=xphost, OU=CandySharkStudio, O=CandySharkStudio, L=BeiJing, ST=BeiJing, C=CN"
+          # 生成配置（需要调用我的秘密密钥）
+          echo -e "storePassword=${{ secrets.MY_ANDROID_KEYTOOL_PASSWORD }}\nkeyPassword=${{ secrets.MY_ANDROID_KEYTOOL_PASSWORD }}\nkeyAlias=upload\nstoreFile=/home/runner/upload-keystore.jks" >> src-tauri/gen/android/keystore.properties
+          # 修改 build.gradle.kts
+          # 首行新增一行 import
+          sed -i '1i import java.io.FileInputStream' src-tauri/gen/android/app/build.gradle.kts
+          # 随后找到 buildType 那一行的往上新增一句话。
+          sed -i '/buildType/isigningConfigs {\ncreate("release") {\nval keystorePropertiesFile = rootProject.file("keystore.properties")\nval keystoreProperties = Properties()\nif (keystorePropertiesFile.exists()) {\nkeystoreProperties.load(FileInputStream(keystorePropertiesFile))\n}\nkeyAlias = keystoreProperties["keyAlias"] as String\nkeyPassword = keystoreProperties["keyPassword"] as String\nstoreFile = file(keystoreProperties["storeFile"] as String)\nstorePassword = keystoreProperties["storePassword"] as String\n}\n}' src-tauri/gen/android/app/build.gradle.kts
+          # 最后在 getByName("release") 底下新增一行，完事！
+          sed -i '/getByName("release")/asigningConfig = signingConfigs.getByName("release")' src-tauri/gen/android/app/build.gradle.kts
+          # 再然后修改 AndroidManifest 进行强制横屏处理！
+          sed -i '/android:name=".MainActivity"/aandroid:screenOrientation="sensorLandscape"' src-tauri/gen/android/app/src/main/AndroidManifest.xml
+          # 再然后把所有图标放入目录里
+          rsync -av --remove-source-files src-tauri/icons/android/ src-tauri/gen/android/app/src/main/res/
+          # 最后再开始打包 Android。。 开始构建！！
+          npm run tauri android build -- --target ${{ matrix.arch }}
+      - name: Upload artifact Windows
+        if: ${{matrix.platform == 'windows'}}
+        uses: actions/upload-artifact@v7
+        with:
+          name: Bundle-${{matrix.platform}}-${{matrix.arch}}
+          path: "src-tauri/target/${{ matrix.target }}/release/spaceport.exe"
+          if-no-files-found: error
+      - name: Upload artifact linux
+        if: ${{matrix.platform == 'linux'}}
+        uses: actions/upload-artifact@v7
+        with:
+          name: Bundle-${{matrix.platform}}-${{matrix.arch}}
+          path: "src-tauri/target/${{ matrix.target }}/release/spaceport"
+          if-no-files-found: error
+      - name: Upload artifact macOS
+        if: ${{matrix.platform == 'macos'}}
+        uses: actions/upload-artifact@v7
+        with:
+          name: Bundle-${{matrix.platform}}-${{matrix.arch}}
+          path: "src-tauri/target/${{ matrix.target }}/release/bundle/macos"
+          if-no-files-found: error
+      - name: Upload artifact android
+        if: ${{matrix.platform == 'android'}}
+        uses: actions/upload-artifact@v7
+        with:
+          name: Bundle-${{matrix.platform}}-${{matrix.arch}}
+          path: "src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk"
+          if-no-files-found: error
+  # 发布 在线游玩网址 的 CI
+  publish-pages:
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    environment:
+      name: Bundle-Web
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - name: remove tauri code
+        run: |
+          sed -i '/tauri/d' package.json
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+      - name: install
+        run: |
+          npm install
+          npm run build
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: "build"
+      - name: Deploy to Github Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
