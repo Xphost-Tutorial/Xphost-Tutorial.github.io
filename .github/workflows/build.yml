@@ -128,14 +128,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: Bundle-${{matrix.platform}}-${{matrix.arch}}
-          path: "src-tauri/target/${{ matrix.target }}/release/spaceport.exe"
+          path: "src-tauri/target/${{ matrix.target }}/release/tutorial-visual-novel.exe"
           if-no-files-found: error
       - name: Upload artifact linux
         if: ${{matrix.platform == 'linux'}}
         uses: actions/upload-artifact@v7
         with:
           name: Bundle-${{matrix.platform}}-${{matrix.arch}}
-          path: "src-tauri/target/${{ matrix.target }}/release/spaceport"
+          path: "src-tauri/target/${{ matrix.target }}/release/tutorial-visual-novel"
           if-no-files-found: error
       - name: Upload artifact macOS
         if: ${{matrix.platform == 'macos'}}
