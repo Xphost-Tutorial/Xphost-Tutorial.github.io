@@ -4,7 +4,7 @@ on:
   push: [main]
   workflow_dispatch:
 
-job:
+jobs:
   # 发布 Tauri 项目的 CI
   publish-tauri:
     permissions:
