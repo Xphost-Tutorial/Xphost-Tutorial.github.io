@@ -101,6 +101,7 @@ jobs:
           fi
           npm install
           npm run tauri icon
+        shell: bash
       - name: Build the app
         if: ${{ matrix.platform != 'android' }}
         run: npm run tauri build -- --target ${{ matrix.target }}
