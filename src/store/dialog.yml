@@ -1,0 +1,14 @@
+const:
+  george: &george
+    type: message
+    name: '<span style="color: #FFFF00">乔治</span>'
+  aside: &aside
+    type: message
+    name: ''
+start:
+  - <<: *george
+    message: 你好！
+  - <<: *aside
+    message: 我不好！
+  - <<: *george
+    message: 我好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好
