@@ -94,7 +94,11 @@ jobs:
           rustup target add ${{ matrix.target }}
       - name: install frontend dependencies
         run: |
-          sed -i 's/bun/npm/g' src-tauri/tauri.conf.json
+          if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' 's/bun/npm/g' src-tauri/tauri.conf.json
+          else
+            sed -i 's/bun/npm/g' src-tauri/tauri.conf.json
+          fi
           npm install
           npm run tauri icon
       - name: Build the app
