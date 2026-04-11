@@ -95,9 +95,9 @@ jobs:
       - name: install frontend dependencies
         run: |
           if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i '' 's/bun/npm/g' src-tauri/tauri.conf.json
+            sed -i '' 's/bun run/npm run/g' src-tauri/tauri.conf.json
           else
-            sed -i 's/bun/npm/g' src-tauri/tauri.conf.json
+            sed -i 's/bun run/npm run/g' src-tauri/tauri.conf.json
           fi
           npm install
           npm run tauri icon
