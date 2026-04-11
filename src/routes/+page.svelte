@@ -3,7 +3,7 @@
   import "../styles/index.css";
   import { fade } from "svelte/transition";
   import MainBack from "../assets/backgroundImage/MainBack.webp";
-  import { closeWindow, init, save, unlockGallery, updateGlobal } from "../utils/backend-tauri";
+  import { closeWindow, init, save, unlockGallery, updateGlobal, openUrl } from "../utils/backend-tauri";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { onMount } from "svelte";
   import { gallerys, saves } from "../store/index";

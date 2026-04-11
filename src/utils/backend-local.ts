@@ -50,3 +50,6 @@ export async function reset() {
 export function closeWindow() {
   alert("现代浏览器不允许直接在 JavaScript 里关闭标签页，请手动关闭喵~")
 }
+export function openUrl(url: string) {
+  window.open(url, "_blank")
+}
