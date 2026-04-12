@@ -5,8 +5,8 @@
   import MainBack from "../assets/backgroundImage/MainBack.webp";
   import { closeWindow, init, save, unlockGallery, updateGlobal, openUrl } from "../utils/backend-tauri";
   import { onMount } from "svelte";
-  import { gallerys, saves } from "../store/index";
-  import { sleep } from "../utils";
+  import { currentSave, gallerys, saves } from "../store/index";
+  import { saveCount, sleep } from "../utils";
   import { goto } from "$app/navigation";
   let shows = $state(0);
   let title = $state("");
@@ -16,10 +16,6 @@
   let galleryCurrent = $state(0);
   let savePage = $state(0);
   onMount(async () => {
-    await init()
-    await save(1, "嘻嘻哈", "2025-12-10 21:33:34", 100, 2, { branch1: "1111", www: "222" })
-    await unlockGallery("345")
-    await updateGlobal("215325", "325235")
     await init()
   });
 </script>
@@ -45,47 +41,58 @@
           {title}
         </div>
       {/if}
-      <button class="text-[2cqi] text-red-500 cursor-pointer"
+      <button class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
       onclick={() => {
+        currentSave.set({
+          current: -1,
+          name: "",
+          updateTime: "",
+          chapter: 0
+        })
         goto("/saves");
       }}>开始</button>
       <button
-        class="text-[2cqi] text-red-500 cursor-pointer"
+        class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
+        style={`${shows === 1 ? 'color: white;' : ''}`}
         onclick={() => {
           title = "读取";
           shows = 1;
         }}>读取</button
       >
       <button
-        class="text-[2cqi] text-red-500 cursor-pointer"
+        class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
+        style={`${shows === 2 ? 'color: white;' : ''}`}
         onclick={() => {
           title = "画廊";
           shows = 2;
         }}>画廊</button
       >
       <button
-        class="text-[2cqi] text-red-500 cursor-pointer"
+        class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
+        style={`${shows === 3 ? 'color: white;' : ''}`}
         onclick={() => {
           title = "设置";
           shows = 3;
         }}>设置</button
       >
       <button
-        class="text-[2cqi] text-red-500 cursor-pointer"
+        class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
+        style={`${shows === 4 ? 'color: white;' : ''}`}
         onclick={() => {
           title = "关于";
           shows = 4;
         }}>关于</button
       >
       <button
-        class="text-[2cqi] text-red-500 cursor-pointer"
+        class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
+        style={`${shows === 5 ? 'color: white;' : ''}`}
         onclick={() => {
           title = "帮助";
           shows = 5;
         }}>帮助</button
       >
       <button
-        class="text-[2cqi] text-red-500 cursor-pointer"
+        class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
         onclick={() => {
           closeWindow();
         }}
@@ -96,7 +103,7 @@
         <button
           in:fade
           out:fade
-          class="text-[2cqi] text-red-500 cursor-pointer absolute bottom-[2cqi] left-0 right-0 mx-auto"
+          class="text-[2cqi] text-gray-500 cursor-pointer absolute bottom-[2cqi] left-0 right-0 mx-auto hover:text-red-300"
           onclick={() => {
             title = "";
             shows = 0;
@@ -131,7 +138,7 @@
             <div
               class="min-h-0 min-w-0 grid grid-cols-3 grid-rows-2 flex-1 gap-[3cqi_2cqi] w-full"
             >
-              {#each new Array($saves.length > savePage * 6 + 6 ? 6 : $saves.length % 6).fill(null) as _, index}
+              {#each new Array(saveCount > savePage * 6 + 6 ? 6 : saveCount % 6).fill(null) as _, index}
                 <div
                   class="min-h-0 min-w-0 w-full h-full flex flex-col items-center gap-[1cqi]"
                 >
@@ -164,7 +171,7 @@
                   if (savePage > 0) savePage -= 1;
                 }}>&lt;</button
               >
-              {#each new Array(Math.ceil($saves.length / 6)).fill(null) as _, index}
+              {#each new Array(Math.ceil(saveCount / 6)).fill(null) as _, index}
                 <button
                   class={`text-gray-400 hover:text-red-300 cursor-pointer ${savePage === index ? "text-white" : ""}`}
                   onclick={() => {
@@ -175,7 +182,7 @@
               <button
                 class="text-gray-400 hover:text-red-300 cursor-pointer"
                 onclick={() => {
-                  if (savePage < Math.ceil($saves.length / 6) - 1)
+                  if (savePage < Math.ceil(saveCount / 6) - 1)
                     savePage += 1;
                 }}>&gt;</button
               >

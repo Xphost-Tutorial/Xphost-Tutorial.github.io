@@ -78,7 +78,7 @@ jobs:
           distribution: "temurin"
       - name: Install Android toolchain
         if: ${{ matrix.platform == 'android' }}
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           cmdline-tools-version: 9477386
       - name: Install Linux dependencies
@@ -184,7 +184,7 @@ jobs:
           npm install
           npm run build
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: "build"
       - name: Deploy to Github Pages

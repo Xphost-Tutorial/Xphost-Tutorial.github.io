@@ -64,3 +64,10 @@ export const gallerys = writable<any[]>([
 export const saves = writable<any[]>([
     ...(new Array(saveCount)).fill({})
 ])
+
+export const currentSave = writable<any>({
+    current: -1,
+    name: "",
+    chapter: 0,
+    updateTime: ""
+})
