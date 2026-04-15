@@ -3,10 +3,17 @@
   import "../styles/index.css";
   import { fade } from "svelte/transition";
   import MainBack from "../assets/backgroundImage/MainBack.webp";
-  import { closeWindow, init, save, unlockGallery, updateGlobal, openUrl } from "../utils/backend-tauri";
+  import {
+    closeWindow,
+    init,
+    save,
+    unlockGallery,
+    updateGlobal,
+    openUrl,
+  } from "../utils/backend-tauri";
   import { onMount } from "svelte";
-  import { currentSave, gallerys, saves } from "../store/index";
-  import { saveCount, sleep } from "../utils";
+  import { currentSave, gallerys } from "../store/index";
+  import { saveCount, saveData, sleep } from "../utils";
   import { goto } from "$app/navigation";
   let shows = $state(0);
   let title = $state("");
@@ -16,7 +23,7 @@
   let galleryCurrent = $state(0);
   let savePage = $state(0);
   onMount(async () => {
-    await init()
+    await init();
   });
 </script>
 
@@ -41,19 +48,22 @@
           {title}
         </div>
       {/if}
-      <button class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
-      onclick={() => {
-        currentSave.set({
-          current: -1,
-          name: "",
-          updateTime: "",
-          chapter: 0
-        })
-        goto("/saves");
-      }}>开始</button>
       <button
         class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
-        style={`${shows === 1 ? 'color: white;' : ''}`}
+        onclick={() => {
+          currentSave.set({
+            current: -1,
+            name: "",
+            updateTime: "",
+            chapter: 0,
+            image: "",
+          });
+          goto("/saves");
+        }}>开始</button
+      >
+      <button
+        class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
+        style={`${shows === 1 ? "color: white;" : ""}`}
         onclick={() => {
           title = "读取";
           shows = 1;
@@ -61,7 +71,7 @@
       >
       <button
         class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
-        style={`${shows === 2 ? 'color: white;' : ''}`}
+        style={`${shows === 2 ? "color: white;" : ""}`}
         onclick={() => {
           title = "画廊";
           shows = 2;
@@ -69,7 +79,7 @@
       >
       <button
         class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
-        style={`${shows === 3 ? 'color: white;' : ''}`}
+        style={`${shows === 3 ? "color: white;" : ""}`}
         onclick={() => {
           title = "设置";
           shows = 3;
@@ -77,7 +87,7 @@
       >
       <button
         class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
-        style={`${shows === 4 ? 'color: white;' : ''}`}
+        style={`${shows === 4 ? "color: white;" : ""}`}
         onclick={() => {
           title = "关于";
           shows = 4;
@@ -85,7 +95,7 @@
       >
       <button
         class="text-[2cqi] text-gray-500 cursor-pointer hover:text-red-300"
-        style={`${shows === 5 ? 'color: white;' : ''}`}
+        style={`${shows === 5 ? "color: white;" : ""}`}
         onclick={() => {
           title = "帮助";
           shows = 5;
@@ -143,21 +153,36 @@
                   class="min-h-0 min-w-0 w-full h-full flex flex-col items-center gap-[1cqi]"
                 >
                   <button
-                    class={`min-h-0 min-w-0 relative w-full h-[calc(100%-1cqi)] bg-red-400 ${$saves[savePage * 6 + index].lock ? "hover-img" : ""}`}
+                    class={`min-h-0 min-w-0 relative w-full h-[calc(100%-1cqi)] bg-red-400 ${$saveData.saveInstance["save" + (savePage * 6 + index + 1)]?.image ? "hover-img" : ""}`}
                     onclick={() => {
+                      if (
+                        $saveData.saveInstance[
+                          "save" + (savePage * 6 + index + 1)
+                        ]?.image
+                      ) {
+                        currentSave.set({
+                          ...$saveData.saveInstance[
+                            `save${savePage * 6 + index + 1}`
+                          ],
+                        });
+                        goto("/saves");
+                      }
                     }}
-                    aria-label="画廊点击"
+                    aria-label="存档点击"
                   >
-                    {#if $saves[savePage * 6 + index].lock}
+                    {#if $saveData.saveInstance["save" + (savePage * 6 + index + 1)]?.image}
                       <img
-                        src={$saves[savePage * 6 + index].image}
-                        alt="画廊图片"
+                        src={$saveData.saveInstance[
+                          "save" + (savePage * 6 + index + 1)
+                        ]?.image}
+                        alt="存档图片"
                         class="w-full h-full min-h-0 min-w-0 object-fill"
                       />
                     {/if}
                   </button>
                   <div class="text-[1.5cqi] text-white">
-                    {$saves[savePage * 6 + index].time || `空存档位${savePage * 6 + index + 1}`}
+                    {$saveData.saveInstance["save" + (savePage * 6 + index + 1)]
+                      ?.updateTime || `空存档位${savePage * 6 + index + 1}`}
                   </div>
                 </div>
               {/each}
@@ -182,8 +207,7 @@
               <button
                 class="text-gray-400 hover:text-red-300 cursor-pointer"
                 onclick={() => {
-                  if (savePage < Math.ceil(saveCount / 6) - 1)
-                    savePage += 1;
+                  if (savePage < Math.ceil(saveCount / 6) - 1) savePage += 1;
                 }}>&gt;</button
               >
             </div>

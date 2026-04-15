@@ -68,6 +68,7 @@ fn save(
     name: String,
     chapter: i32,
     current: i32,
+    image: String,
     branches: serde_json::Value,
 ) {
     let config_content = get_file(path_join!(HOME_DIR.get().unwrap(), "data.json"))
@@ -99,6 +100,7 @@ fn save(
         "updateTime".to_string(),
         serde_json::Value::String(update_time),
     );
+    save_json.insert("image".to_string(), serde_json::Value::String(image));
     let branches_object = branches.as_object().unwrap();
     for (k, v) in branches_object.iter() {
         save_json.insert(format!("bch_{}", k), v.clone());
@@ -122,10 +124,7 @@ fn update_gallery(id: String) {
         .expect("Cannot find gallery key!")
         .as_object_mut()
         .expect("Cannot convert config file gallery node to json object!");
-    gallerys_json.insert(
-        id.clone(),
-        serde_json::Value::Bool(true),
-    );
+    gallerys_json.insert(id.clone(), serde_json::Value::Bool(true));
     let return_json = serde_json::to_string_pretty(&config_json.clone()).unwrap();
     set_file(
         path_join!(HOME_DIR.get().unwrap(), "data.json"),
@@ -145,10 +144,7 @@ fn update_global(id: String, value: String) {
         .expect("Cannot find global key!")
         .as_object_mut()
         .expect("Cannot convert config file global node to json object!");
-    global_json.insert(
-        id.clone(),
-        serde_json::Value::String(value),
-    );
+    global_json.insert(id.clone(), serde_json::Value::String(value));
     let return_json = serde_json::to_string_pretty(&config_json.clone()).unwrap();
     set_file(
         path_join!(HOME_DIR.get().unwrap(), "data.json"),
@@ -170,7 +166,7 @@ fn init_home_dir(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error
         .path()
         .app_local_data_dir()
         .map_err(|_| "Cannot get data dir!".to_string())?;
-    let home_dir = base_dir.join("Robot-Love");
+    let home_dir = base_dir.join("my-tutorial-visual-novel");
     HOME_DIR
         .set(home_dir.to_string_lossy().to_string())
         .map_err(|_| "Cannot put all value!".to_string())?;
@@ -195,7 +191,12 @@ pub fn run() {
             init_home_dir(&app_handle)?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![init_app, save, update_gallery, update_global])
+        .invoke_handler(tauri::generate_handler![
+            init_app,
+            save,
+            update_gallery,
+            update_global
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

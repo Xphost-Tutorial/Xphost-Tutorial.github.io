@@ -16,6 +16,7 @@ export async function save(
   updateTime: string,
   current: number,
   chapter: number,
+  image: string,
   branches: object = {},
 ) {
   await invoke("save", {
@@ -24,6 +25,7 @@ export async function save(
     name,
     chapter,
     current,
+    image,
     branches,
   });
 }

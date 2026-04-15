@@ -2,7 +2,7 @@ import { writable } from "svelte/store";
 import gallery1 from "../assets/backgroundImage/MainBack.webp"
 import gallery2 from "../assets/backgroundImage/Back2.webp"
 import { saveCount } from "../utils";
-export const gallerys = writable<any[]>([
+export const gallerys = writable<{ gallery: string[], lock: boolean }[]>([
     {
         gallery: [gallery1, gallery2],
         lock: false
@@ -61,13 +61,18 @@ export const gallerys = writable<any[]>([
     },
 ])
 
-export const saves = writable<any[]>([
-    ...(new Array(saveCount)).fill({})
-])
-
 export const currentSave = writable<any>({
     current: -1,
     name: "",
     chapter: 0,
-    updateTime: ""
+    updateTime: "",
+    image: "",
+})
+
+export const quickSave = writable<any>({
+    current: -1,
+    name: "",
+    chapter: 0,
+    updateTime: "",
+    image: ""
 })

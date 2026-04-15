@@ -177,6 +177,8 @@ jobs:
         run: |
           sed -i '/tauri/d' package.json
           sed -i 's/backend-tauri/backend-local/g' src/routes/+page.svelte
+          sed -i 's/backend-tauri/backend-local/g' src/routes/saves/MyMenu.svelte
+          sed -i 's/backend-tauri/backend-local/g' src/routes/saves/+page.svelte
       - name: Setup Pages
         uses: actions/configure-pages@v6
       - name: install

@@ -3,8 +3,9 @@
   import dialog from "../../store/dialog.yml";
   import { sleep } from "../../utils";
   import MyMenu from "./MyMenu.svelte";
-  import { currentSave } from "../../store";
+  import { currentSave, quickSave } from "../../store";
   import { goto } from "$app/navigation";
+  import html2canvas from "html2canvas-oklch";
   let dialogCurrent = $state("");
   let lockText = false;
   let exitText = false;
@@ -12,6 +13,7 @@
   let menuTitle = $state("");
   let isQuick = $state(false);
   let isAuto = $state(false);
+  let isFirst = false;
   function getCur(): number {
     return $currentSave.current;
   }
@@ -19,6 +21,12 @@
     currentSave.set({
       ...$currentSave,
       current: $currentSave.current + num,
+    });
+  }
+  function setCS(key: string, value: any) {
+    currentSave.set({
+      ...$currentSave,
+      [key]: value,
     });
   }
   function backToMain() {
@@ -58,7 +66,10 @@
       lockText = false;
       return;
     }
-    addCur(1);
+    if (isFirst || getCur() === -1) {
+      addCur(1);
+    }
+    isFirst = true;
     const d = dialog.start[getCur()];
     if (!d?.type) {
       backToMain();
@@ -107,6 +118,30 @@
       prev();
     }
   }
+  async function waitSave() {
+    function addZero(num: number) {
+      return num > 9 ? num : "0" + num;
+    }
+    const date = new Date();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const hour = date.getHours();
+    const minute = date.getMinutes();
+    const canvas = await html2canvas(document.querySelector(".\\@container")!, {
+      scale: 0.5,
+      backgroundColor: "#000000",
+      logging: false,
+      useCORS: false,
+      allowTaint: false,
+      imageTimeout: 0,
+    });
+    const base64DataURL = canvas.toDataURL("image/jpeg", 0.8);
+    setCS(
+      "updateTime",
+      `${date.getFullYear()}-${addZero(month)}-${addZero(day)} ${addZero(hour)}:${addZero(minute)}`,
+    );
+    setCS("image", base64DataURL);
+  }
   setInterval(() => {
     if (isQuick) {
       addCur(1);
@@ -140,7 +175,13 @@
     onclick={next}
   >
     {#if menuNum !== -1}
-      <MyMenu title={menuTitle} num={menuNum} result={() => (menuNum = -1)}
+      <MyMenu
+        title={menuTitle}
+        num={menuNum}
+        result={(k = false) => {
+          if (k) prev();
+          menuNum = -1;
+        }}
       ></MyMenu>
     {/if}
     <div
@@ -172,10 +213,12 @@
           <button
             class="hover:text-red-300 text-gray-400 cursor-pointer"
             style="font-size: 1cqi"
-            onclick={(e) => {
+            onclick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
               isQuick = false;
+              isAuto = false;
+              await waitSave();
               menuTitle = "历史";
               menuNum = 0;
             }}
@@ -206,9 +249,14 @@
           <button
             class="hover:text-red-300 text-gray-400 cursor-pointer"
             style="font-size: 1cqi"
-            onclick={(e) => {
+            onclick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
+              isQuick = false;
+              isAuto = false;
+              await waitSave();
+              menuTitle = "保存";
+              menuNum = 1;
             }}
             aria-label="保存">保存</button
           >
@@ -218,24 +266,33 @@
             onclick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              quickSave.set($currentSave);
+              isQuick = false;
             }}
             aria-label="快存">快存</button
           >
           <button
-            class="hover:text-red-300 text-gray-400 cursor-pointer"
-            style="font-size: 1cqi"
+            class={`hover:text-red-300 ${$quickSave.current !== -1 ? "hover:text-red-300 text-gray-400 cursor-pointer" : "text-gray-700"}`}
+            style="font-size: 1cqi;"
             onclick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              if ($quickSave.current !== -1) {
+                isQuick = false;
+                currentSave.set($quickSave);
+                addCur(-1);
+                next();
+              }
             }}
             aria-label="快读">快读</button
           >
           <button
             class="hover:text-red-300 text-gray-400 cursor-pointer"
             style="font-size: 1cqi"
-            onclick={(e) => {
+            onclick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
+              await waitSave();
             }}
             aria-label="设置">设置</button
           >
