@@ -6,10 +6,10 @@
   import {
     closeWindow,
     init,
-    save,
-    unlockGallery,
     updateGlobal,
     openUrl,
+    requestFullscreen,
+    exitFullscreen,
   } from "../utils/backend-tauri";
   import { onMount } from "svelte";
   import { currentSave, gallerys } from "../store/index";
@@ -19,11 +19,28 @@
   let title = $state("");
   let help = $state(0);
   let galleryPage = $state(0);
-  let galleryClick = $state(-1);
+  let galleryClick = $state("");
   let galleryCurrent = $state(0);
   let savePage = $state(0);
+  function sendGalleryLock() {
+    Object.keys($gallerys).forEach((key) => {
+      if ($saveData.gallery[key]) {
+        gallerys.set({
+          ...$gallerys,
+          [key]: {
+            ...$gallerys[key],
+            lock: true,
+          },
+        });
+      }
+    });
+  }
   onMount(async () => {
     await init();
+    sendGalleryLock();
+    if ($saveData.global!.isFullscreen === "1") {
+      requestFullscreen();
+    }
   });
 </script>
 
@@ -224,30 +241,28 @@
             <div
               class="min-h-0 min-w-0 grid grid-cols-3 grid-rows-2 flex-1 gap-[3cqi_2cqi] w-full"
             >
-              {#each new Array($gallerys.length > galleryPage * 6 + 6 ? 6 : $gallerys.length % 6).fill(null) as _, index}
+              {#each Object.keys($gallerys).filter((_, index) => index >= galleryPage * 6 && index < galleryPage * 6 + 6) as key}
                 <div
                   class="min-h-0 min-w-0 w-full h-full flex flex-col items-center gap-[1cqi]"
                 >
                   <button
-                    class={`min-h-0 min-w-0 relative w-full h-[calc(100%-1cqi)] bg-red-400 ${$gallerys[galleryPage * 6 + index].lock ? "hover-img" : ""}`}
+                    class={`min-h-0 min-w-0 relative w-full h-[calc(100%-1cqi)] bg-red-400 ${$gallerys[key].lock ? "hover-img" : ""}`}
                     onclick={() => {
-                      if ($gallerys[galleryPage * 6 + index].lock) {
-                        galleryClick = galleryPage * 6 + index;
+                      if ($gallerys[key].lock) {
+                        galleryClick = key;
                       }
                     }}
                     aria-label="画廊点击"
                   >
-                    {#if $gallerys[galleryPage * 6 + index].lock}
+                    {#if $gallerys[key].lock}
                       <img
-                        src={$gallerys[galleryPage * 6 + index].gallery[0]}
+                        src={$gallerys[key].gallery[0]}
                         alt="画廊图片"
                         class="w-full h-full min-h-0 min-w-0 object-fill"
                       />
                     {/if}
                   </button>
-                  <div class="text-[1.5cqi] text-white">
-                    第{galleryPage * 6 + index + 1}张
-                  </div>
+                  <div class="text-[1.5cqi] text-white">{key}</div>
                 </div>
               {/each}
             </div>
@@ -260,7 +275,7 @@
                   if (galleryPage > 0) galleryPage -= 1;
                 }}>&lt;</button
               >
-              {#each new Array(Math.ceil($gallerys.length / 6)).fill(null) as _, index}
+              {#each new Array(Math.ceil(Object.keys($gallerys).length / 6)).fill(null) as _, index}
                 <button
                   class={`text-gray-400 hover:text-red-300 cursor-pointer ${galleryPage === index ? "text-white" : ""}`}
                   onclick={() => {
@@ -287,12 +302,41 @@
               <div class="flex flex-col">
                 <div class="text-red-500">显示</div>
                 <button
-                  class="text-gray-500 text-left hover:text-red-300 ml-[1cqi] cursor-pointer"
+                  class={`text-gray-500 text-left hover:text-red-300 ml-[1cqi] ${$saveData.global?.isFullscreen === "0" ? "highlightText" : "cursor-pointer"}`}
+                  onclick={() => {
+                    if ($saveData.global!.isFullscreen !== "0") {
+                      saveData.set({
+                        ...$saveData,
+                        global: {
+                          ...$saveData.global,
+                          isFullscreen: "0",
+                        },
+                      });
+                      updateGlobal("isFullscreen", "0");
+                      exitFullscreen();
+                    }
+                  }}
                 >
                   窗口
                 </button>
                 <button
-                  class="text-gray-500 text-left hover:text-red-300 ml-[1cqi] cursor-pointer"
+                  class={`text-gray-500 text-left hover:text-red-300 ml-[1cqi] ${$saveData.global?.isFullscreen === "1" ? "highlightText" : "cursor-pointer"}`}
+                  onclick={() => {
+                    if ($saveData.global!.isFullscreen !== "1") {
+                      saveData.set({
+                        ...$saveData,
+                        global: {
+                          ...$saveData.global,
+                          isFullscreen: "1",
+                        },
+                      });
+                      updateGlobal(
+                        "isFullscreen",
+                        $saveData.global!.isFullscreen,
+                      );
+                      requestFullscreen();
+                    }
+                  }}
                 >
                   全屏
                 </button>
@@ -300,17 +344,53 @@
               <div class="flex flex-col">
                 <div class="text-red-500">快进</div>
                 <button
-                  class="text-gray-500 text-left hover:text-red-300 ml-[1cqi] cursor-pointer"
+                  class={`text-gray-500 text-left hover:text-red-300 ml-[1cqi] cursor-pointer ${$saveData.global?.notReadText === "1" ? "highlightText" : ""}`}
+                  onclick={() => {
+                    saveData.set({
+                      ...$saveData,
+                      global: {
+                        ...$saveData.global,
+                        notReadText:
+                          $saveData.global.notReadText === "1" ? "0" : "1",
+                      },
+                    });
+                    updateGlobal("notReadText", $saveData.global.notReadText);
+                  }}
                 >
                   未读文本
                 </button>
                 <button
-                  class="text-gray-500 text-left hover:text-red-300 ml-[1cqi] cursor-pointer"
+                  class={`text-gray-500 text-left hover:text-red-300 ml-[1cqi] cursor-pointer ${$saveData.global?.choiceContinue === "1" ? "highlightText" : ""}`}
+                  onclick={() => {
+                    saveData.set({
+                      ...$saveData,
+                      global: {
+                        ...$saveData.global,
+                        choiceContinue:
+                          $saveData.global.choiceContinue === "1" ? "0" : "1",
+                      },
+                    });
+                    updateGlobal(
+                      "choiceContinue",
+                      $saveData.global.choiceContinue,
+                    );
+                  }}
                 >
                   选项后继续
                 </button>
                 <button
-                  class="text-gray-500 text-left hover:text-red-300 ml-[1cqi] cursor-pointer"
+                  class={`text-gray-500 text-left hover:text-red-300 ml-[1cqi] cursor-pointer ${$saveData.global?.ignoreScene === "1" ? "highlightText" : ""}`}
+                  onclick={() => {
+                    saveData.set({
+                      ...$saveData,
+                      global: {
+                        ...$saveData.global,
+                        ignoreScene:
+                          $saveData.global.ignoreScene === "1" ? "0" : "1",
+                      },
+                    });
+                    updateGlobal("ignoreScene", $saveData.global.ignoreScene);
+                  }}
                 >
                   忽略转场
                 </button>
@@ -322,56 +402,125 @@
               <input
                 type="range"
                 id="textspeed"
+                class="w-full h-[1cqi]"
                 name="textspeed"
                 min="0"
                 max="100"
-                value="20"
-                class="w-full h-[1cqi]"
+                value={Number($saveData.global?.textSpeed ?? "0")}
+                onchange={(e) => {
+                  const value = e.target.value;
+                  saveData.set({
+                    ...$saveData,
+                    global: {
+                      ...$saveData.global,
+                      textSpeed: value,
+                    },
+                  });
+                  updateGlobal("textSpeed", $saveData.global.textSpeed);
+                }}
               />
               <div class="text-red-500">自动前进时间</div>
               <input
                 type="range"
-                id="textspeed"
-                name="textspeed"
+                id="autoSpeed"
+                class="w-full h-[1cqi]"
+                name="autoSpeed"
                 min="0"
                 max="100"
-                value="20"
-                class="w-full h-[1cqi]"
+                value={Number($saveData.global?.autoSpeed ?? "0")}
+                onchange={(e) => {
+                  const value = e.target.value;
+                  saveData.set({
+                    ...$saveData,
+                    global: {
+                      ...$saveData.global,
+                      autoSpeed: value,
+                    },
+                  });
+                  updateGlobal("autoSpeed", $saveData.global.autoSpeed);
+                }}
               />
             </div>
             <div class="flex flex-col items-start gap-[1cqi]">
               <div class="text-red-500">音乐音量</div>
               <input
                 type="range"
-                id="textspeed"
-                name="textspeed"
+                id="musicVolumn"
+                class="w-full h-[1cqi]"
+                name="musicVolumn"
                 min="0"
                 max="100"
-                value="100"
-                class="w-full h-[1cqi]"
+                value={Number($saveData.global?.musicVolumn ?? "0")}
+                onchange={(e) => {
+                  const value = e.target.value;
+                  saveData.set({
+                    ...$saveData,
+                    global: {
+                      ...$saveData.global,
+                      musicVolumn: value,
+                    },
+                  });
+                  updateGlobal("musicVolumn", $saveData.global.musicVolumn);
+                }}
               />
               <div class="text-red-500">音效音量</div>
               <input
                 type="range"
-                id="textspeed"
-                name="textspeed"
+                id="soundVolumn"
+                class="w-full h-[1cqi]"
+                name="soundVolumn"
                 min="0"
                 max="100"
-                value="100"
-                class="w-full h-[1cqi]"
+                value={Number($saveData.global?.soundVolumn ?? "0")}
+                onchange={(e) => {
+                  const value = e.target.value;
+                  saveData.set({
+                    ...$saveData,
+                    global: {
+                      ...$saveData.global,
+                      soundVolumn: value,
+                    },
+                  });
+                  updateGlobal("soundVolumn", $saveData.global.soundVolumn);
+                }}
               />
               <div class="text-red-500">语音音量</div>
               <input
                 type="range"
-                id="textspeed"
-                name="textspeed"
+                id="voiceVolumn"
+                class="w-full h-[1cqi]"
+                name="voiceVolumn"
                 min="0"
                 max="100"
-                value="100"
-                class="w-full h-[1cqi]"
+                value={Number($saveData.global?.voiceVolumn ?? "0")}
+                onchange={(e) => {
+                  const value = e.target.value;
+                  saveData.set({
+                    ...$saveData,
+                    global: {
+                      ...$saveData.global,
+                      voiceVolumn: value,
+                    },
+                  });
+                  updateGlobal("voiceVolumn", $saveData.global.voiceVolumn);
+                }}
               />
               <button
                 class="text-gray-500 text-left hover:text-red-300 ml-[1.5cqi] cursor-pointer"
+                onclick={() => {
+                  saveData.set({
+                    ...$saveData,
+                    global: {
+                      ...$saveData.global,
+                      voiceVolumn: "0",
+                      soundVolumn: "0",
+                      musicVolumn: "0",
+                    },
+                  });
+                  updateGlobal("voiceVolumn", $saveData.global.voiceVolumn);
+                  updateGlobal("soundVolumn", $saveData.global.voiceVolumn);
+                  updateGlobal("musicVolumn", $saveData.global.voiceVolumn);
+                }}
               >
                 全部静音
               </button>
@@ -397,8 +546,8 @@
             引擎：<button
               style="color: red;"
               class="cursor-pointer"
-              onclick={async () => {
-                await openUrl("https://tauri.app");
+              onclick={() => {
+                openUrl("https://tauri.app");
               }}>Tauri</button
             >
             2.10.1<br /><br />
@@ -473,22 +622,22 @@
         </div>
       {/if}
     </div>
-    {#if galleryClick > -1 || galleryCurrent > 0}
+    {#if galleryClick !== "" || galleryCurrent > 0}
       <div class="size-full absolute top-0 left-0 z-9 bg-black"></div>
     {/if}
-    {#if galleryClick !== -1}
+    {#if galleryClick !== ""}
       <button
         in:fade={{ duration: 200 }}
         out:fade={{ duration: 200 }}
         aria-label="画廊点击"
         onclick={async () => {
           let temp = galleryClick;
-          galleryClick = -1;
+          galleryClick = "";
           await sleep(10);
           galleryCurrent += 1;
           galleryClick = temp;
           if (galleryCurrent >= $gallerys[galleryClick].gallery.length) {
-            galleryClick = -1;
+            galleryClick = "";
             galleryCurrent = 0;
           }
         }}
@@ -523,6 +672,19 @@
     position: absolute;
   }
   .hover-img:hover::before {
+    background-color: oklch(80.8% 0.114 19.571);
+  }
+  .highlightText {
+    color: white !important;
+    position: relative;
+  }
+  .highlightText::before {
+    position: absolute;
+    content: "";
+    height: 80%;
+    left: -0.8cqi;
+    top: 10%;
+    width: 0.4cqi;
     background-color: oklch(80.8% 0.114 19.571);
   }
 </style>

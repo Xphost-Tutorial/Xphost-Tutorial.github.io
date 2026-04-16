@@ -292,7 +292,11 @@
             onclick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
+              isQuick = false;
+              isAuto = false;
               await waitSave();
+              menuTitle = "设置";
+              menuNum = 3;
             }}
             aria-label="设置">设置</button
           >

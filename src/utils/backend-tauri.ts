@@ -48,3 +48,10 @@ export function closeWindow() {
 export function openUrl(url: string) {
   openerUrl(url)
 }
+
+export async function requestFullscreen() {
+  await window.getCurrentWindow().setFullscreen(true);
+}
+export async function exitFullscreen() {
+  await window.getCurrentWindow().setFullscreen(false);
+}

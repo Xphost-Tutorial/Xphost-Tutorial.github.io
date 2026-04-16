@@ -53,3 +53,28 @@ export function closeWindow() {
 export function openUrl(url: string) {
   window.open(url, "_blank")
 }
+
+
+export async function requestFullscreen() {
+  const el = document.documentElement;
+  if (el.requestFullscreen) {
+    el.requestFullscreen()
+  } else if ((el as any).webkitRequestFullScreen) {
+    (el as any).webkitRequestFullScreen()
+  } else if ((el as any).mozRequestFullScreen) {
+    (el as any).mozRequestFullScreen()
+  } else if ((el as any).msRequestFullScreen) {
+    (el as any).msRequestFullScreen()
+  }
+}
+export async function exitFullscreen() {
+  if (document.exitFullscreen) {
+    document.exitFullscreen()
+  } else if ((document as any).webkitExitFullScreen) {
+    (document as any).webkitExitFullScreen()
+  } else if ((document as any).mozExitFullScreen) {
+    (document as any).mozExitFullScreen()
+  } else if ((document as any).msExitFullScreen) {
+    (document as any).msExitFullScreen()
+  }
+}

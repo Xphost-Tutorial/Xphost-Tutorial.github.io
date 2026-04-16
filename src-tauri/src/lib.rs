@@ -32,7 +32,17 @@ fn init_app_back(save_count: i32) -> Result<String, Box<dyn std::error::Error>> 
     if global.is_none() {
         config_json.insert(
             "global".to_string(),
-            serde_json::Value::Object(serde_json::Map::new()),
+            serde_json::json!({
+                "isFullscreen": "0",
+                "notReadText": "0",
+                "choiceContinue": "0",
+                "ignoreScene": "0",
+                "textSpeed": "20",
+                "autoSpeed": "50",
+                "musicVolumn": "100",
+                "soundVolumn": "100",
+                "voiceVolumn": "100",
+            }),
         );
     }
     for i in 1..=save_count {
