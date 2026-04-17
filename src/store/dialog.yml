@@ -9,11 +9,74 @@ const:
     type: message
     name: ''
 start:
+  - type: value
+    valueId: 常量
+    action: set|0
   - <<: *george
-    message: 你好！
+    id: 开头
+    message: <c-rainbow>你好！</c-rainbow>
+  - type: choice
+    branchId: 专属选项
+    branches: [真正的死亡, 重生并复活]
   - <<: *aside
-    message: 我不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好不好！
-  - <<: *george
-    message: '我好好好好好好好好好好好<span style="color: red">好好好好好好</span>好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好好'
-  - <<: *realAside
-    message: '你猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜猜'
+    message: 你死了。
+    if:
+      - action: 专属选项|真正的死亡
+  - <<: *aside
+    message: 你复活了！
+    if:
+      - action: 专属选项|重生并复活
+  - type: choice
+    branchId: 是否重玩
+    branches: [重新来过, 不重来了]
+  - type: value
+    valueId: 分数1
+    action: set|1
+    if:
+      - action: 专属选项|真正的死亡
+  - type: value
+    valueId: 分数1
+    action: set|2
+    if:
+      - action: 专属选项|重生并复活
+  - type: value
+    valueId: 分数1
+    action: add|1
+    if:
+      - action: 是否重玩|重新来过
+  - type: value
+    valueId: 分数1
+    action: add|2
+    if:
+      - action: 是否重玩|不重来了
+  - <<: *aside
+    message: 你都死了，为什么不重来！！
+    if:
+      # if(专属选项 == 真正的死亡 && 是否重玩 == 不重来了)
+      - action: 专属选项|真正的死亡
+        next: and
+      - action: 是否重玩|不重来了
+  - <<: *aside
+    message: 你重生了，也重来了！！欢迎加入恶魔大军！
+    if:
+      - action: 专属选项|重生并复活
+        next: and
+      - action: 是否重玩|重新来过
+  - <<: *aside
+    message: 你重生了，但是为什么不重来！！！
+    if:
+      - action: 专属选项|重生并复活
+        next: and
+      - action: 是否重玩|不重来了
+  - <<: *aside
+    message: 你都死了，还想重来？呵呵呵，可笑！
+    if:
+      - action: 专属选项|真正的死亡
+        next: and
+      - action: 是否重玩|重新来过
+  - <<: *aside
+    message: 来吧！欢迎来到我的城市！
+    if:
+      - action: 分数1|==|3
+  - type: goto
+    goto: 开头

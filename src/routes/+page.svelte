@@ -1,6 +1,7 @@
 <script lang="ts">
   import "../styles/tailwind.css";
   import "../styles/index.css";
+  import "../components/lit/MyComponents";
   import { fade } from "svelte/transition";
   import MainBack from "../assets/backgroundImage/MainBack.webp";
   import {

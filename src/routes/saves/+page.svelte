@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import dialog from "../../store/dialog.yml";
-  import { sleep } from "../../utils";
+  import { saveData, sleep } from "../../utils";
   import MyMenu from "./MyMenu.svelte";
   import { currentSave, quickSave } from "../../store";
   import { goto } from "$app/navigation";
   import html2canvas from "html2canvas-oklch";
+  import { updateGlobal } from "../../utils/backend-tauri";
   let dialogCurrent = $state("");
   let lockText = false;
   let exitText = false;
@@ -13,15 +14,30 @@
   let menuTitle = $state("");
   let isQuick = $state(false);
   let isAuto = $state(false);
-  let isFirst = false;
-  function getCur(): number {
+  function gc(): number {
     return $currentSave.current;
   }
-  function addCur(num: number) {
+  function sc(num: number) {
+    currentSave.set({
+      ...$currentSave,
+      current: num,
+    });
+  }
+  function ac(num: number) {
     currentSave.set({
       ...$currentSave,
       current: $currentSave.current + num,
     });
+  }
+  function setGS(key: string, value: string) {
+    saveData.set({
+      ...$saveData,
+      global: {
+        ...$saveData.global,
+        [key]: value,
+      },
+    });
+    updateGlobal(key, value);
   }
   function setCS(key: string, value: any) {
     currentSave.set({
@@ -34,8 +50,128 @@
     isAuto = false;
     goto("/");
   }
-  onMount(() => {
-    next();
+  function gsi(key: string | undefined = undefined): any {
+    if (key) return $currentSave[key];
+    else return $currentSave;
+  }
+  function gd(index: number): any {
+    return dialog.start[index] ?? {};
+  }
+  async function doStyle(current: number, isQuick: boolean) {
+    if (!isQuick) await sleep(500);
+  }
+  /**
+   * 判断 if 规则的函数，返回是否应该跳过
+   * @param action if 规则
+   */
+  function judgeRule(action: string): boolean {
+    let res = false;
+    const fasplit = action.split("|");
+    if (fasplit.length === 3) {
+      if (fasplit[1] === "<") {
+        if (parseFloat(gsi(fasplit[0])) < parseFloat(fasplit[2])) {
+          res = true;
+        }
+      } else if (fasplit[1] === ">") {
+        if (parseFloat(gsi(fasplit[0])) > parseFloat(fasplit[2])) {
+          res = true;
+        }
+      } else if (fasplit[1] === "<=") {
+        if (parseFloat(gsi(fasplit[0])) <= parseFloat(fasplit[2])) {
+          res = true;
+        }
+      } else if (fasplit[1] === ">=") {
+        if (parseFloat(gsi(fasplit[0])) >= parseFloat(fasplit[2])) {
+          res = true;
+        }
+      } else if (fasplit[1] === "==") {
+        if (parseFloat(gsi(fasplit[0])) === parseFloat(fasplit[2])) {
+          res = true;
+        }
+      }
+    } else if (fasplit.length === 2) {
+      if (gsi(fasplit[0]) === fasplit[2]) {
+        res = true;
+      }
+    }
+    return res;
+  }
+  /**
+   * 自动判断分支和 goto 语句的跳过
+   * @param index 当前分支
+   * @param ps 前进还是后退
+   */
+  function jumpTo(index: number, ps: boolean): number {
+    let resNum = index;
+    while (true) {
+      const j = gd(resNum + (ps ? 1 : -1)).if;
+      if (j && j.length > 0) {
+        let result = true;
+        const firstAction = j[0]!.action;
+        result = judgeRule(firstAction);
+        for (let i = 1; i < j.length; i++) {
+          const action = j[i].action;
+          const next = j[i].next;
+          if (next === "and") {
+            result = result && judgeRule(action);
+          } else if (next === "or") {
+            result = result || judgeRule(action);
+          }
+        }
+        if (result) break;
+      } else break;
+    }
+    return resNum;
+  }
+  /**
+   * 通过 nextOne 自动判断分支和 goto（仅向前）
+   * @param index 当前分支
+   * @param plus 是否 jumpTo
+   * @returns 第一个值是一个标记值，用于标记当前是选择还是别的。见下表
+   *
+   * 第二个值是 真实的 当前 jumpTo 值！
+   *
+   * 1. -100：是个错误（没有 message，type 也不是正常的。）
+   * 2. 0：代表是正常的 message！
+   * 3. -1：到剧本末尾了。
+   * 4. -2：当前是个选项。
+   * 5. -3：当前是个结局。
+   * 6. -4：当前是个赋值。
+   */
+  function nextOne(index: number, plus: boolean): [number, number] {
+    let resNum = index;
+    if (resNum >= dialog.start.length) return [-1, resNum];
+    if (
+      gd(resNum).type === "goto" &&
+      gd(resNum).if &&
+      gd(resNum).if.length >= 0
+    ) {
+    }
+    if (plus) {
+      resNum = jumpTo(resNum, true);
+      resNum++;
+    }
+    if (gd(resNum).type === "choice") return [-2, resNum];
+    if (gd(resNum).message === undefined) return [-100, resNum];
+    return [0, resNum];
+  }
+  onMount(async () => {
+    let m = 0;
+    while (m < gc()) {
+      let [n, r] = nextOne(m, false);
+      if (n === 0) {
+        m = r;
+        m = jumpTo(m, true);
+        await doStyle(m, true);
+      } else if (n == -2) {
+        m = jumpTo(m, true);
+        await doStyle(m, true);
+      } else if (n === -100) {
+        break;
+      }
+      m++;
+    }
+    await next();
   });
   let keyLock = false;
   function spaceDown(e: KeyboardEvent) {
@@ -55,27 +191,32 @@
       keyLock = false;
     }
   }
-  async function next() {
+  /**
+   * 正常往下跳转一格
+   * @param plus 是否跳转 +1。如果不需要 +1，例如此时是选择 choice 的话，就需要设置成 false
+   */
+  async function next(plus: boolean = true) {
     isQuick = false;
     if (menuNum !== -1) {
       return;
     }
     if (lockText) {
       exitText = true;
-      dialogCurrent = dialog.start[getCur()].message;
+      dialogCurrent = dialog.start[gc()].message;
       lockText = false;
       return;
     }
-    if (isFirst || getCur() === -1) {
-      addCur(1);
+    if (gc() === -1) {
+      ac(1);
     }
-    isFirst = true;
-    const d = dialog.start[getCur()];
+    let [n, r] = nextOne(gc(), plus);
+    if (n === -100 || n === -1) return;
+    const d = dialog.start[gc()];
     if (!d?.type) {
       backToMain();
       return;
     }
-    if (d.type === "message") {
+    if (d?.type === "message") {
       dialogCurrent = "";
       lockText = true;
       const ct = d.message;
@@ -91,7 +232,7 @@
         if (ct[i] === ">") {
           isLt = false;
         }
-        if (!isLt) await sleep(100 - 80); // TODO: 设置
+        if (!isLt) await sleep(200 - $saveData.global.textSpeed); // TODO: 设置
         if (exitText) {
           break;
         }
@@ -102,15 +243,39 @@
       }
       exitText = false;
       lockText = false;
+    } else if (d?.type === "choice") return;
+    else if (d?.type === "value") {
+      const id = d.valueId;
+      const action = d.action;
+      const asplit = action.split("|");
+      if (asplit.length === 2) {
+        if (asplit[0] === "set") {
+          setCS(id, asplit[1]);
+        } else if (asplit[0] === "add") {
+          let nr = Number(gsi(id));
+          let nv = Number(asplit[1]);
+          if (nv && nr) {
+            setCS(id, nr + nv);
+          }
+        } else if (asplit[0] === "sub") {
+          let nr = Number(gsi(id));
+          let nv = Number(asplit[1]);
+          if (nv && nr) {
+            setCS(id, nr - nv);
+          }
+        }
+      }
+      next(plus);
     }
+    sc(r);
   }
   function prev() {
-    addCur(-1);
-    if (getCur() < 0) {
-      addCur(1);
+    ac(-1);
+    if (gc() < 0) {
+      ac(1);
       return;
     }
-    const d = dialog.start[getCur()];
+    const d = dialog.start[gc()];
     if (d.type === "message") {
       dialogCurrent = d.message;
       exitText = true;
@@ -144,8 +309,8 @@
   }
   setInterval(() => {
     if (isQuick) {
-      addCur(1);
-      const d = dialog.start[getCur()];
+      ac(1);
+      const d = dialog.start[gc()];
       if (!d?.type) {
         backToMain();
         return;
@@ -161,7 +326,7 @@
     if (isAuto) {
       next();
     }
-  }, 5000); // TODO: 设置
+  }, $saveData.global.autoSpeed * 100); // TODO: 设置
   document.addEventListener("wheel", (e: WheelEvent) => {});
 </script>
 
@@ -189,7 +354,7 @@
     >
       <div class="flex flex-col w-3/5 h-full flex-1 items-center">
         <div class="w-full text-left">
-          {@html dialog.start[getCur()]?.name || "　"}
+          {@html dialog.start[gc()]?.name || "　"}
         </div>
         <div
           class="text-left px-[2cqi] w-full flex-1 *:text-white text-white"
@@ -280,7 +445,7 @@
               if ($quickSave.current !== -1) {
                 isQuick = false;
                 currentSave.set($quickSave);
-                addCur(-1);
+                ac(-1);
                 next();
               }
             }}
